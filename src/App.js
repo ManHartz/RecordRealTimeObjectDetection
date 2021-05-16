@@ -6,21 +6,31 @@ import * as tf from "@tensorflow/tfjs";
 import Webcam from "react-webcam";
 import "./App.css";
 // 2. TODO - Import drawing utility here
-// e.g. import { drawRect } from "./utilities";
+import { drawRect } from "./utilities";
+import TableInitiate from "./TableInitiate";
+import { max } from "@tensorflow/tfjs";
+import Tabletest from "./Tabletest";
 
-function App() {
+function App(props) {
+  const [rows, setRows] = useState([
+    { id: 1, col1: "Hello", col2: "World" },
+    { id: 2, col1: "XGrid", col2: "is Awesome" },
+    { id: 3, col1: "Material-UI", col2: "is Amazing" },
+  ]);
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
 
   // Main function
   const runCoco = async () => {
-    // 3. TODO - Load network 
+    // 3. TODO - Load network
     // e.g. const net = await cocossd.load();
-    
+    const net = await tf.loadGraphModel(
+      "https://ssd-mobilenet-tensorflow-fyp.s3.jp-tok.cloud-object-storage.appdomain.cloud/model.json"
+    );
     //  Loop and detect hands
     setInterval(() => {
       detect(net);
-    }, 10);
+    }, 16.7);
   };
 
   const detect = async (net) => {
@@ -44,24 +54,56 @@ function App() {
       canvasRef.current.height = videoHeight;
 
       // 4. TODO - Make Detections
-      // e.g. const obj = await net.detect(video);
+      const img = tf.browser.fromPixels(video);
+      const resized = tf.image.resizeBilinear(img, [640, 480]);
+      const casted = resized.cast("int32");
+      const expanded = casted.expandDims(0);
+      const obj = await net.executeAsync(expanded);
+      console.log(obj);
+
+      const boxes = await obj[1].array();
+      const classes = await obj[2].array();
+      const scores = await obj[4].array();
 
       // Draw mesh
       const ctx = canvasRef.current.getContext("2d");
 
       // 5. TODO - Update drawing utility
-      // drawSomething(obj, ctx)  
+      // drawSomething(obj, ctx)
+      requestAnimationFrame(() => {
+        drawRect(
+          boxes[0],
+          classes[0],
+          scores[0],
+          0.8,
+          videoWidth,
+          videoHeight,
+          ctx
+        );
+      });
+
+      tf.dispose(img);
+      tf.dispose(resized);
+      tf.dispose(casted);
+      tf.dispose(expanded);
+      tf.dispose(obj);
     }
   };
 
-  useEffect(()=>{runCoco()},[]);
+  useEffect(() => {
+    runCoco();
+  }, []);
+
+  const dataAdded = () => {
+    setRows += { id: 1, col1: "Hello", col2: "World" };
+  };
 
   return (
     <div className="App">
       <header className="App-header">
         <Webcam
           ref={webcamRef}
-          muted={true} 
+          muted={true}
           style={{
             position: "absolute",
             marginLeft: "auto",
@@ -70,8 +112,8 @@ function App() {
             right: 0,
             textAlign: "center",
             zindex: 9,
-            width: 640,
-            height: 480,
+            height: 280,
+            padding: 5,
           }}
         />
 
@@ -85,11 +127,12 @@ function App() {
             right: 0,
             textAlign: "center",
             zindex: 8,
-            width: 640,
-            height: 480,
+            height: 280,
           }}
         />
       </header>
+      <TableInitiate />
+      <Tabletest />
     </div>
   );
 }
